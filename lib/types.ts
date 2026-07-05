@@ -71,28 +71,30 @@ export interface LoanRecord {
   recordType: RecordType;
   name: string;
   phone: string;
-  email?: string;
+  email?: string | null;
   loanType: LoanType;
-  amount?: number;
-  city?: string;
+  amount?: number | null;
+  city?: string | null;
   source: LeadSource;
   status: RecordStatus;
   createdAt: string;
   lastUpdatedAt: string;
-  lastContactedAt?: string;
+  lastContactedAt?: string | null;
   followUpCount: number;
-  followUpStoppedAt?: string;
+  followUpStoppedAt?: string | null;
   requiredDocs: RequiredDoc[];
   bankDocs: BankDoc[];
   unmatchedDocs: UnmatchedDoc[];
-  notes?: string;
+  notes?: string | null;
+  referrerName?: string | null;
+  referrerPhone?: string | null;
   // Customer-specific fields
-  bankName?: string;
-  loanAccountNumber?: string;
-  disbursementDate?: string;
-  emiAmount?: number;
-  tenure?: number;
-  sanctionedAmount?: number;
+  bankName?: string | null;
+  loanAccountNumber?: string | null;
+  disbursementDate?: string | null;
+  emiAmount?: number | null;
+  tenure?: number | null;
+  sanctionedAmount?: number | null;
 }
 
 export type ActivityType =

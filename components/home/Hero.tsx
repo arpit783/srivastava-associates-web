@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, Shield, Award, Users } from "lucide-react";
 import CallbackModal from "@/components/ui/CallbackModal";
 import { useState } from "react";
