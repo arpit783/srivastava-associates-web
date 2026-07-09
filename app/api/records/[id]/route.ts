@@ -2,8 +2,6 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { sendStatusUpdateEmail } from "@/lib/mailer";
-import { sendWhatsAppText } from "@/lib/whatsapp";
-import { LOAN_TYPE_LABELS } from "@/lib/document-checklists";
 
 export async function GET(
   _req: NextRequest,
@@ -52,51 +50,62 @@ export async function PATCH(
     }
 
     const current = docSnap.data() as any;
-    const updates: Record<string, any> = { ...body, lastUpdatedAt: now };
 
-    // Handle status change
+    // Fields allowed to be directly updated
+    const EDITABLE_FIELDS = [
+      "name", "phone", "email", "loanType", "amount", "city", "source",
+      "bankName", "loanAccountNumber", "disbursementDate", "emiAmount",
+      "tenure", "sanctionedAmount", "notes", "referrerName", "referrerPhone",
+      "recordType", "status",
+    ];
+
+    const updates: Record<string, any> = { lastUpdatedAt: now };
+
+    // Copy only allowed fields from body
+    for (const field of EDITABLE_FIELDS) {
+      if (field in body) updates[field] = body[field];
+    }
+
+    // Handle status change logging + email
     if (body.status && body.status !== current.status) {
-      const logEntry = {
+      await docRef.collection("activityLog").add({
         recordId: params.id,
         type: "status-change",
         note: `Status changed: ${current.status} → ${body.status}`,
         performedBy: body.performedBy || "admin",
         timestamp: now,
         metadata: { oldStatus: current.status, newStatus: body.status },
-      };
-      await docRef.collection("activityLog").add(logEntry);
+      });
 
-      // Email notification
       try {
-        await sendStatusUpdateEmail(
-          { id: params.id, ...current },
-          current.status,
-          body.status
-        );
+        await sendStatusUpdateEmail({ id: params.id, ...current }, current.status, body.status);
       } catch {}
+    }
 
-      // Auto-promote lead to customer on Disbursed
-      if (body.status === "Disbursed" && current.recordType === "lead") {
-        updates.recordType = "customer";
+    // Handle recordType change (lead → customer conversion)
+    if (body.recordType && body.recordType !== current.recordType) {
+      // If not already logged via status change
+      if (!(body.status && body.status !== current.status)) {
+        await docRef.collection("activityLog").add({
+          recordId: params.id,
+          type: "status-change",
+          note: `Record type changed: ${current.recordType} → ${body.recordType}`,
+          performedBy: body.performedBy || "admin",
+          timestamp: now,
+        });
       }
     }
 
-    // Handle activity log entry
+    // Handle inline activity log entry
     if (body.activityEntry) {
       await docRef.collection("activityLog").add({
         recordId: params.id,
         ...body.activityEntry,
         timestamp: now,
       });
-
-      // Track lastContactedAt for follow-up scheduler
       if (body.activityEntry.type === "call") {
         updates.lastContactedAt = now;
-        if (body.activityEntry.outcome === "No Response") {
-          updates.followUpCount = (current.followUpCount || 0);
-        }
       }
-      delete updates.activityEntry;
     }
 
     await docRef.update(updates);

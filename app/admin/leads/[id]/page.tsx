@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Edit2, Save, X } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Pencil, ArrowRightCircle } from "lucide-react";
 import { LOAN_TYPE_LABELS, LoanType } from "@/lib/document-checklists";
-import { formatDate, formatDateTime, timeAgo, formatINR } from "@/lib/utils";
+import { formatDate, formatINR } from "@/lib/utils";
 import type { LeadStatus, CustomerStatus } from "@/lib/types";
 import ActivityLog from "@/components/admin/RecordDetail/ActivityLog";
 import DocumentVault from "@/components/admin/RecordDetail/DocumentVault";
 import WhatsAppSendPanel from "@/components/admin/RecordDetail/WhatsAppSendPanel";
 import EmailPanel from "@/components/admin/RecordDetail/EmailPanel";
+import EditRecordModal from "@/components/admin/EditRecordModal";
+import ConvertToCustomerModal from "@/components/admin/ConvertToCustomerModal";
 import toast from "react-hot-toast";
 
 const LEAD_STATUSES: LeadStatus[] = [
@@ -30,12 +32,13 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function RecordDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const [record, setRecord] = useState<any>(null);
   const [activityLog, setActivityLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("documents");
   const [savingStatus, setSavingStatus] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -155,7 +158,7 @@ export default function RecordDetailPage() {
                   </span>
                 )}
                 <span className="badge-status bg-gray-100 text-gray-600">{record.source}</span>
-                {isCustomer && record.bankName && (
+                {record.bankName && (
                   <span className="badge-status bg-blue-100 text-blue-700">{record.bankName}</span>
                 )}
               </div>
@@ -197,6 +200,24 @@ export default function RecordDetailPage() {
             >
               Generate Upload Link
             </button>
+
+            {/* Edit + Convert buttons */}
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-navy border border-navy/30 px-3 py-1.5 rounded-lg hover:bg-navy/5 transition-colors font-medium"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit Details
+              </button>
+              {!isCustomer && (
+                <button
+                  onClick={() => setConvertOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                >
+                  <ArrowRightCircle className="w-3.5 h-3.5" /> Convert to Customer
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -250,6 +271,24 @@ export default function RecordDetailPage() {
       )}
       {activeTab === "email" && (
         <EmailPanel record={record} onSent={load} />
+      )}
+
+      {/* Edit modal */}
+      <EditRecordModal
+        record={record}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={load}
+      />
+
+      {/* Convert to Customer modal */}
+      {!isCustomer && (
+        <ConvertToCustomerModal
+          record={record}
+          open={convertOpen}
+          onClose={() => setConvertOpen(false)}
+          onConverted={() => { load(); }}
+        />
       )}
     </div>
   );
